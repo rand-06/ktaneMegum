@@ -239,7 +239,12 @@ public class script : MonoBehaviour
     {
         string items = items0;
         int bits1 = abs(items.IndexOf('0') - items.IndexOf('7'));
-        if (bits1 > 3) bits1 = 7 - bits1;
+        if (bits1>3) bits1 = 7 - bits1;
+        else bits1 = bits1 - 1;
+
+        Debug.Log("[Megum #" + ModuleId.ToString() + "] Buns position:" + 
+            items.IndexOf('0') +", " + items.IndexOf('7') +". Distance: " + bits1);
+
 
         items = items.Remove(items.IndexOf('0'), 1);
         items = items.Remove(items.IndexOf('7'), 1);
