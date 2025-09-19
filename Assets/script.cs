@@ -37,6 +37,9 @@ public class script : MonoBehaviour
     static int ModuleIdCounter = 1;
     int ModuleId;
 
+    int TPForceSelect;
+    string stage2Ingredients;
+
     void Awake()
     {
         ModuleId = ModuleIdCounter++;
@@ -56,22 +59,26 @@ public class script : MonoBehaviour
     }
     float abs(float x) { return x < 0 ? -x : x; }
     int abs(int x) { return x < 0 ? -x : x; }
+    int findMinItem()
+    {
+        int min_ind = 0;
+        float min = abs(fruits[0].transform.localPosition.x);
+        for (int i = 1; i < 8; i++)
+        {
+            float cur = abs(fruits[i].transform.localPosition.x);
+            if (cur < min)
+            {
+                min = cur;
+                min_ind = i;
+            }
+        }
+        return min_ind;
+    }
     bool pressStatus()
     {
         if (!moduleSolved)
         {
-            int min_ind = 0;
-            float min = abs(fruits[0].transform.localPosition.x);
-            for (int i = 1; i < 8; i++)
-            {
-                float cur = abs(fruits[i].transform.localPosition.x);
-                if (cur < min)
-                {
-                    min = cur;
-                    min_ind = i;
-                }
-            }
-
+            int min_ind = TPForceSelect != -1 ? (stageNumber == 2 ? (stage2Ingredients.IndexOf(TPForceSelect.ToString())) : TPForceSelect) : findMinItem();
             if (stageNumber != 3)
             {
                 if (!pressed[min_ind])
@@ -215,6 +222,7 @@ public class script : MonoBehaviour
         }
 
         anstable = anstable.Substring(anstable.IndexOf('7')) + anstable.Substring(0, anstable.IndexOf('7'));
+        stage2Ingredients = anstable;
 
         Debug.Log("[Megum #" + ModuleId.ToString() + "] Ingridient list on the module: " +
             logItems[anstable[0] - '0'] + ", " +
@@ -593,5 +601,78 @@ public class script : MonoBehaviour
         ans1 = generateAnswer();
         ans3 = vote(playersPoints());
         megum2 = Random.Range(0, 8);
+    }
+
+#pragma warning disable 414
+    private readonly string TwitchHelpMessage = @"In Phase 1, use <!{0} A/B/G/K/M/O/S/W> to select a fruit (Apple/Banana/Grapes/Kiwi/Mango/Orange/Starfruit/Watermelon) - chain with/without spaces. In Phase 2, use <!{0} B/C/P/H/L/S/T> to select a sandwich ingredient ((Bottom Bun/Top Bun, the correct Bun will be selected automatically)/Cheese/Pickle/Ham/Lettuce/Sauce/Tomatoes) - chain with/without spaces. In Phase 3, use <!{0} K/D/G/M> to select an activity (KTANE/Dandy's World/Gartic Phone/Minecraft).";
+#pragma warning restore 414
+
+    IEnumerator ProcessTwitchCommand(string Command)
+    {
+        var commandArgs = Command.ToUpperInvariant().Replace(" ", "");
+        switch (stageNumber)
+        {
+            case 1:
+            case 2:
+                string stageIngredients = stageNumber == 1 ? "ABGKMOSW" : "BCPHLST";
+                List<int> selects = new List<int>();
+                foreach (char food in commandArgs)
+                {
+                    if (stageIngredients.Contains(food)) selects.Add(stageIngredients.IndexOf(food));
+                    else yield return "sendtochaterror Invalid command!";
+                }
+                if (stageNumber == 1 && selects.Count != selects.Distinct().ToList().Count) yield return "sendtochaterror Invalid command!";
+                else
+                {
+                    yield return null;
+                    foreach (int ingredient in selects)
+                    {
+                        TPForceSelect = (stageNumber == 2 && pressed[stage2Ingredients.IndexOf('0')] && ingredient == 0) ? 7 : ingredient;
+                        statusLight.OnInteract();
+                        yield return new WaitForSeconds(0.2f);
+                    }
+                }
+                break;
+            case 3:
+                if (commandArgs.Length != 1 || !"KDGM".Contains(commandArgs)) yield return "sendtochaterror Invalid command!";
+                else
+                {
+                    yield return null;
+                    TPForceSelect = "KDGM".IndexOf(commandArgs);
+                    statusLight.OnInteract();
+                    yield return new WaitForSeconds(0.2f);
+                }
+                break;
+            default:
+                break;
+        }
+        yield return null;
+    }
+
+    IEnumerator TwitchHandleForcedSolve()
+    {
+        yield return null;
+        while (!moduleSolved)
+        {
+            switch (stageNumber)
+            {
+                case 1:
+                case 2:
+                    foreach (int ingredient in ans1.Skip(pressedAmount))
+                    {
+                        TPForceSelect = stageNumber == 1 ? ingredient : (stage2Ingredients[ingredient] - '0');
+                        statusLight.OnInteract();
+                        yield return new WaitForSeconds(0.2f);
+                    }
+                    break;
+                case 3:
+                    TPForceSelect = ans3;
+                    statusLight.OnInteract();
+                    yield return new WaitForSeconds(0.2f);
+                    break;
+                default:
+                    break;
+            }
+        }
     }
 }
