@@ -4,7 +4,7 @@ using UnityEngine;
 using KModkit;
 using System.Linq;
 
-public class script : MonoBehaviour
+public class megumScript : MonoBehaviour
 {
 
     public GameObject[] fruits = new GameObject[8];
@@ -37,7 +37,7 @@ public class script : MonoBehaviour
     static int ModuleIdCounter = 1;
     int ModuleId;
 
-    int TPForceSelect;
+    int TPForceSelect = -1;
     string stage2Ingredients;
 
     void Awake()
